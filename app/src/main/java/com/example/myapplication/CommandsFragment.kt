@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.os.Bundle
+import android.util.Log
 import android.view.*
 import android.widget.ArrayAdapter
 import android.widget.FrameLayout
@@ -8,6 +9,11 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.File
+
+private const val COMMANDS_FILENAME = "commands.json"
 
 class CommandsFragment : Fragment() {
 
@@ -17,6 +23,7 @@ class CommandsFragment : Fragment() {
     private val commandData = mutableMapOf<String, TargetCommand>()
     private var contentFrameId: Int = 0
     private lateinit var viewModel: SharedViewModel
+    private val gson = Gson()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -57,12 +64,17 @@ class CommandsFragment : Fragment() {
 
         viewModel.incomingCommand.observe(viewLifecycleOwner) { command ->
             val targetName = command.targetName
-            if (targetName !in tabs) {
+            val isNewTab = targetName !in tabs
+            if (isNewTab) {
                 tabs.add(targetName)
-                adapter.notifyDataSetChanged()
             }
 
             commandData[targetName] = command
+            saveCommands() // Save after updating data
+
+            if (isNewTab) {
+                adapter.notifyDataSetChanged()
+            }
 
             // Update currently visible tab
             childFragmentManager.fragments.forEach { frag ->
@@ -71,10 +83,16 @@ class CommandsFragment : Fragment() {
                 }
             }
 
-            // Show first tab automatically
-            if (tabs.size == 1) showTab(command)
+            // Show first tab automatically or if it's the one being updated and is new
+            if (tabs.size == 1 && isNewTab) {
+                 showTab(command)
+            } else if (!isNewTab && childFragmentManager.findFragmentById(contentFrameId) == null && tabs.isNotEmpty()) {
+                // If a tab was updated but nothing is shown (e.g. after rotation and load), show the first one.
+                 commandData[tabs[0]]?.let { showTab(it) }
+            }
         }
 
+        loadCommands() // Load commands when view is created
         return layout
     }
 
@@ -83,5 +101,40 @@ class CommandsFragment : Fragment() {
         childFragmentManager.beginTransaction()
             .replace(contentFrameId, fragment)
             .commit()
+    }
+
+    private fun saveCommands() {
+        try {
+            val file = File(requireContext().filesDir, COMMANDS_FILENAME)
+            val jsonString = gson.toJson(commandData)
+            file.writeText(jsonString)
+        } catch (e: Exception) {
+            Log.e("CommandsFragment", "Error saving commands: ${e.localizedMessage}")
+        }
+    }
+
+    private fun loadCommands() {
+        try {
+            val file = File(requireContext().filesDir, COMMANDS_FILENAME)
+            if (file.exists()) {
+                val jsonString = file.readText()
+                val type = object : TypeToken<MutableMap<String, TargetCommand>>() {}.type
+                val loadedData: MutableMap<String, TargetCommand>? = gson.fromJson(jsonString, type)
+
+                if (loadedData != null) {
+                    commandData.clear()
+                    commandData.putAll(loadedData)
+                    tabs.clear()
+                    tabs.addAll(commandData.keys)
+                    adapter.notifyDataSetChanged()
+
+                    if (tabs.isNotEmpty()) {
+                       commandData[tabs[0]]?.let { showTab(it) } // Show the first tab
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CommandsFragment", "Error loading commands: ${e.localizedMessage}")
+        }
     }
 }

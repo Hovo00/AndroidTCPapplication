@@ -57,7 +57,7 @@ class SharedViewModel : ViewModel() {
     private val serverIP = "10.42.0.1"
     private val serverPort = 5000
 
-    var senderId: Int = 3
+    var senderId: Int = 1
     val senderIdHex: String
         get() = "0x%03X".format(senderId)
 
