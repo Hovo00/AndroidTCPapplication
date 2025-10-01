@@ -3,10 +3,10 @@ package com.example.myapplication
 import android.os.Bundle
 import android.util.Log
 import android.view.*
-import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ListView
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.google.gson.Gson
@@ -18,12 +18,13 @@ private const val COMMANDS_FILENAME = "commands.json"
 class CommandsFragment : Fragment() {
 
     private lateinit var tabList: ListView
-    private lateinit var adapter: ArrayAdapter<String>
+    private var listAdapter: CommandAdapter? = null
     private val tabs = mutableListOf<String>()
     private val commandData = mutableMapOf<String, TargetCommand>()
     private var contentFrameId: Int = 0
     private lateinit var viewModel: SharedViewModel
     private val gson = Gson()
+    private var currentVisibleTab: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -39,7 +40,10 @@ class CommandsFragment : Fragment() {
         }
 
         tabList = ListView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(200, LinearLayout.LayoutParams.MATCH_PARENT)
+            layoutParams = LinearLayout.LayoutParams(
+                resources.getDimensionPixelSize(R.dimen.command_list_width), // Use dimension resource
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
             setBackgroundColor(0xFFEEEEEE.toInt())
         }
 
@@ -52,8 +56,10 @@ class CommandsFragment : Fragment() {
         layout.addView(tabList)
         layout.addView(contentFrame)
 
-        adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, tabs)
-        tabList.adapter = adapter
+        listAdapter = CommandAdapter(requireContext(), tabs) { commandName ->
+            handleDeleteCommand(commandName)
+        }
+        tabList.adapter = listAdapter
 
         tabList.setOnItemClickListener { _, _, position, _ ->
             val label = tabs[position]
@@ -65,42 +71,48 @@ class CommandsFragment : Fragment() {
         viewModel.incomingCommand.observe(viewLifecycleOwner) { command ->
             val targetName = command.targetName
             val isNewTab = targetName !in tabs
+
             if (isNewTab) {
                 tabs.add(targetName)
+                tabs.sort() // Sort before notifying adapter
             }
-
             commandData[targetName] = command
-            saveCommands() // Save after updating data
+            saveCommands()
+            
+            // Notify adapter after data and tabs are updated
+            listAdapter?.notifyDataSetChanged()
 
-            if (isNewTab) {
-                adapter.notifyDataSetChanged()
-            }
+            // Decide which tab to show
+            val shouldShowThisCommand = currentVisibleTab == targetName || (isNewTab && tabs.size == 1)
+            val isContentFrameEmpty = childFragmentManager.findFragmentById(contentFrameId) == null
 
-            // Update currently visible tab
-            childFragmentManager.fragments.forEach { frag ->
-                if (frag is TabFragment && frag.getLabel() == targetName) {
-                    frag.updateCommand(command)
-                }
-            }
-
-            // Show first tab automatically or if it's the one being updated and is new
-            if (tabs.size == 1 && isNewTab) {
-                 showTab(command)
-            } else if (!isNewTab && childFragmentManager.findFragmentById(contentFrameId) == null && tabs.isNotEmpty()) {
-                // If a tab was updated but nothing is shown (e.g. after rotation and load), show the first one.
-                 commandData[tabs[0]]?.let { showTab(it) }
+            if (shouldShowThisCommand) {
+                showTab(command)
+            } else if (isContentFrameEmpty && tabs.isNotEmpty()) {
+                // If nothing is shown, and there are tabs, show the first one
+                commandData[tabs[0]]?.let { showTab(it) }
             }
         }
 
-        loadCommands() // Load commands when view is created
+        loadCommands()
         return layout
     }
 
     private fun showTab(command: TargetCommand) {
-        val fragment = TabFragment.newInstance(command)
+        currentVisibleTab = command.targetName
+        // Assuming TabFragment.newInstance(command) is correctly defined elsewhere
+        val fragment = TabFragment.newInstance(command) 
         childFragmentManager.beginTransaction()
             .replace(contentFrameId, fragment)
             .commit()
+    }
+    
+    private fun clearContentFrame() {
+        val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
+        if (currentFragment != null) {
+            childFragmentManager.beginTransaction().remove(currentFragment).commitAllowingStateLoss()
+        }
+        currentVisibleTab = null
     }
 
     private fun saveCommands() {
@@ -125,16 +137,69 @@ class CommandsFragment : Fragment() {
                     commandData.clear()
                     commandData.putAll(loadedData)
                     tabs.clear()
-                    tabs.addAll(commandData.keys)
-                    adapter.notifyDataSetChanged()
+                    tabs.addAll(commandData.keys.sorted()) // Ensure tabs are sorted
+                    listAdapter?.notifyDataSetChanged()
 
                     if (tabs.isNotEmpty()) {
-                       commandData[tabs[0]]?.let { showTab(it) } // Show the first tab
+                       commandData[tabs[0]]?.let { showTab(it) } // Show first tab
+                    } else {
+                       clearContentFrame() // No tabs to show
                     }
+                } else {
+                    // File exists but data is null (e.g. parse error or empty file)
+                    Log.w("CommandsFragment", "Command file exists but content is invalid or empty.")
+                    commandData.clear()
+                    tabs.clear()
+                    listAdapter?.notifyDataSetChanged()
+                    clearContentFrame()
                 }
+            } else {
+                // File does not exist, treat as no commands
+                commandData.clear()
+                tabs.clear()
+                listAdapter?.notifyDataSetChanged()
+                clearContentFrame()
             }
         } catch (e: Exception) {
             Log.e("CommandsFragment", "Error loading commands: ${e.localizedMessage}")
+            // Fallback: clear data and UI
+            commandData.clear()
+            tabs.clear()
+            listAdapter?.notifyDataSetChanged()
+            clearContentFrame()
         }
+    }
+
+    private fun handleDeleteCommand(commandName: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Command")
+            .setMessage("Are you sure you want to delete the command \"$commandName\"?")// Corrected string template
+            .setPositiveButton("Yes") { _, _ ->
+                val wasCurrentVisibleTab = currentVisibleTab == commandName
+                
+                tabs.remove(commandName)
+                commandData.remove(commandName)
+                listAdapter?.notifyDataSetChanged()
+                saveCommands()
+
+                if (wasCurrentVisibleTab) {
+                    clearContentFrame() 
+                }
+
+                if (tabs.isNotEmpty()) {
+                    // If the deleted tab was visible OR if no tab is currently visible, show the first available tab.
+                    if (wasCurrentVisibleTab || currentVisibleTab == null) {
+                         commandData[tabs[0]]?.let { showTab(it) }
+                    }
+                    // If another tab was already visible and it wasn't the one deleted, it remains visible.
+                } else {
+                    // No tabs left, ensure content frame is clear (already done if wasCurrentVisibleTab and currentVisibleTab was not null)
+                    if (!wasCurrentVisibleTab || currentVisibleTab != null) { // ensure clear if wasCurrentVisibleTab was null
+                        clearContentFrame()
+                    }
+                }
+            }
+            .setNegativeButton("No", null)
+            .show()
     }
 }

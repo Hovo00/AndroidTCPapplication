@@ -122,7 +122,7 @@ class SharedViewModel : ViewModel() {
         }
     }
 
-    private fun payloadIsForThisDevice(payload: String, senderId: String): Boolean {
+    private fun payloadIsForThisDevice(payload: String,                                                                                                   senderId: String): Boolean {
         val parts = payload.split(":")
         if (parts.size < 2) return false
         val targetId = parts[1]
