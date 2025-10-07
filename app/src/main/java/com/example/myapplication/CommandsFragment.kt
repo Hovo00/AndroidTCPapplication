@@ -206,7 +206,7 @@ class CommandsFragment : Fragment() {
 
         val tableContainerWidth =
             resources.displayMetrics.widthPixels - resources.getDimensionPixelSize(R.dimen.command_list_width)
-        val cellWidth = tableContainerWidth / (numCols)
+        val cellWidth = tableContainerWidth / numCols
 
         fun dpToPx(dp: Int): Int =
             (dp * resources.displayMetrics.density).toInt()
@@ -251,8 +251,7 @@ class CommandsFragment : Fragment() {
 
         commonTableLayout.addView(row1)
 
-        // --- Row 2 (non-editable, vertical text, Armenian) ---
-        // --- Row 2 (non-editable, vertical text, Armenian) ---
+        // --- Row 2 (vertical Armenian text) ---
         val r2Texts = listOf(
             "բուսոլի նշումն ըստ հ.ու.",
             "Ըստ հիմնական ՆԿ-ի",
@@ -264,7 +263,6 @@ class CommandsFragment : Fragment() {
 
         val row2 = TableRow(context)
         for (col in 0 until numCols) {
-            // 1. Create the TextView that will be rotated
             val textView = VerticalTextView(context).apply {
                 text = r2Texts[col]
                 gravity = Gravity.CENTER
@@ -274,36 +272,120 @@ class CommandsFragment : Fragment() {
             }
             val params = TableRow.LayoutParams(cellWidth, row2Height)
             row2.addView(createBorderedWrapper(context, textView), params)
-
-
         }
         commonTableLayout.addView(row2)
 
-
-
-        // --- Row 3 (r3c1–4 editable, r3c5–6 non-editable) ---
+        // --- Row 3 (editable for col 1–4, read-only for 5–6) ---
         val row3 = TableRow(context)
         for (col in 1..numCols) {
             val cellView: View = if (col <= 4) {
-                EditText(context).apply {
-                    hint = "r3c$col"
+                val editText = EditText(context).apply {
+                    hint = "00-00"
                     gravity = Gravity.CENTER
                     background = null
                     textSize = 12f
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    // max displayed length including dash is 5 (e.g. "12-34")
+                    filters = arrayOf(android.text.InputFilter.LengthFilter(5))
                 }
+
+                // internal guard to avoid recursive edits
+                var isSelfChange = false
+
+                editText.addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        if (isSelfChange) return
+                        isSelfChange = true
+
+                        val raw = s?.toString() ?: ""
+                        // keep only digits, up to 4 digits
+                        val digits = raw.replace("[^\\d]".toRegex(), "").take(4)
+
+                        // split first 2 and next up to 2
+                        val firstPart = digits.take(2)
+                        var secondPart = if (digits.length > 2) digits.substring(2) else ""
+
+                        // clamp ranges: first 00..59, second 00..99
+                        if (firstPart.isNotEmpty()) {
+                            val v = firstPart.toInt()
+                            if (v > 59) {
+                                // replace first part with clamped value
+                                val clamped = "59"
+                                // rebuild digits accordingly
+                                val newDigits = if (digits.length > 2) clamped + digits.substring(2) else clamped
+                                // ensure secondPart updated from newDigits
+                                secondPart = if (newDigits.length > 2) newDigits.substring(2) else ""
+                            }
+                        }
+                        if (secondPart.isNotEmpty()) {
+                            val v2 = secondPart.toInt()
+                            if (v2 > 99) secondPart = "99"
+                        }
+
+                        // Build formatted string:
+                        // - if user typed <=2 digits: show digits as-is (no padding)
+                        // - if user typed 3..4 digits: show as "AA-BB" (no padding zeros while typing)
+                        val formatted = when {
+                            digits.length <= 2 -> firstPart
+                            else -> {
+                                val a = firstPart.padStart(2, '0')
+                                val b = secondPart.padStart(digits.length - 2, '0') // keep raw length for second part
+                                "$a-$b"
+                            }
+                        }
+
+                        // update only if changed
+                        if (formatted != raw) {
+                            editText.setText(formatted)
+                            // place cursor at end (keeps UX simple and stable)
+                            editText.setSelection(formatted.length.coerceAtMost(editText.text.length))
+                        }
+
+                        isSelfChange = false
+                    }
+                })
+
+                // on focus lost: pad/normalize to full "AA-BB" format and enforce ranges
+                editText.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                    if (!hasFocus) {
+                        val raw = editText.text.toString()
+                        val digits = raw.replace("[^\\d]".toRegex(), "").padEnd(4, '0').take(4)
+                        var first = digits.substring(0, 2)
+                        var second = digits.substring(2, 4)
+
+                        // clamp ranges
+                        val firstInt = first.toInt()
+                        if (firstInt > 59) first = "59"
+                        val secondInt = second.toInt()
+                        if (secondInt > 99) second = "99"
+
+                        val final = String.format("%02d-%02d", first.toInt(), second.toInt())
+                        editText.setText(final)
+                        editText.setSelection(final.length)
+                    }
+                }
+
+                editText
             } else {
                 TextView(context).apply {
-                    text = "r3c$col"
+                    text = "00-00"
                     gravity = Gravity.CENTER
                     setBackgroundColor(Color.parseColor("#F5F5F5"))
                     textSize = 12f
                 }
             }
+
             val params = TableRow.LayoutParams(cellWidth, row3Height)
             row3.addView(createBorderedWrapper(context, cellView), params)
         }
+
         commonTableLayout.addView(row3)
     }
+
+
 
 
 
