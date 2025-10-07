@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="command_list_width">150dp</dimen>
+    <dimen name="command_list_width">140dp</dimen>
 </resources>
