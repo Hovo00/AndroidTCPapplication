@@ -24,8 +24,6 @@ import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatTextView
 
 
-import android.view.Gravity
-
 class VerticalTextView(context: Context, attrs: AttributeSet? = null) : AppCompatTextView(context, attrs) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(heightMeasureSpec, widthMeasureSpec)
@@ -34,23 +32,15 @@ class VerticalTextView(context: Context, attrs: AttributeSet? = null) : AppCompa
 
     override fun onDraw(canvas: Canvas) {
         canvas.save()
-
-        // Rotate around top-left corner
         canvas.rotate(-90f)
         canvas.translate(-height.toFloat(), 0f)
-
-        // Center the text properly after rotation
         val dx = (height - layout.width) / 2f
         val dy = (width - layout.height) / 2f
         canvas.translate(dx, dy)
-
         layout?.draw(canvas)
         canvas.restore()
     }
 }
-
-
-
 
 private const val COMMANDS_FILENAME = "commands.json"
 
@@ -65,10 +55,15 @@ class CommandsFragment : Fragment() {
     private val gson = Gson()
     private var currentVisibleTab: String? = null
 
-    // Common UI
     private lateinit var commonHeader: TextView
     private lateinit var commonTableLayout: TableLayout
     private var commonTableVisible = false
+
+    private fun getColorFromTheme(attrRes: Int): Int {
+        val typedValue = android.util.TypedValue()
+        requireContext().theme.resolveAttribute(attrRes, typedValue, true)
+        return typedValue.data
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -83,44 +78,40 @@ class CommandsFragment : Fragment() {
             )
         }
 
-        // ---- Left side: tab list ----
         tabList = ListView(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
                 resources.getDimensionPixelSize(R.dimen.command_list_width),
                 LinearLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(0xFFEEEEEE.toInt())
+            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
         }
 
-        // ---- Right side: content container ----
         val contentWrapper = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         }
 
-        // --- Common header (toggle) ---
         commonHeader = TextView(requireContext()).apply {
             text = "Հրանոթի հրամանատարի գրառում ▶"
             textSize = 15f
             setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(Color.LTGRAY)
+            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorPrimary))
+            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnPrimary))
             setPadding(16, 16, 16, 16)
             setOnClickListener { toggleCommonTable() }
         }
 
-        // --- Common table ---
         commonTableLayout = TableLayout(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
             setStretchAllColumns(true)
             visibility = View.GONE
         }
         buildCommonTable()
 
-        // --- Frame for TabFragments ---
         val contentFrame = FrameLayout(requireContext()).apply {
             id = View.generateViewId()
             contentFrameId = id
@@ -131,16 +122,13 @@ class CommandsFragment : Fragment() {
             )
         }
 
-        // add to wrapper
         contentWrapper.addView(commonHeader)
         contentWrapper.addView(commonTableLayout)
         contentWrapper.addView(contentFrame)
 
-        // add to root layout
         layout.addView(tabList)
         layout.addView(contentWrapper)
 
-        // setup adapter + listeners (unchanged)
         listAdapter = CommandAdapter(requireContext(), tabs) { commandName ->
             handleDeleteCommand(commandName)
         }
@@ -151,7 +139,6 @@ class CommandsFragment : Fragment() {
             commandData[label]?.let { showTab(it) }
         }
 
-        // viewmodel
         viewModel = ViewModelProvider(requireActivity())[SharedViewModel::class.java]
 
         viewModel.incomingCommand.observe(viewLifecycleOwner) { command ->
@@ -186,16 +173,14 @@ class CommandsFragment : Fragment() {
         commonHeader.text = if (commonTableVisible) "Հրանոթի հրամանատարի գրառում ▲" else "Հրանոթի հրամանատարի գրառում ▶"
     }
     private fun createBorderedWrapper(context: Context, view: View): FrameLayout {
-        // Create a drawable for the border
         val border = android.graphics.drawable.GradientDrawable()
-        border.setColor(Color.TRANSPARENT) // Cell background
-        border.setStroke(1, Color.BLACK)   // 1 pixel black border
+        border.setColor(Color.TRANSPARENT)
+        border.setStroke(1, getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
 
-        // Create the wrapper, set its background, and add the view to it
         return FrameLayout(context).apply {
             background = border
-            addView(view) // Add the TextView or EditText inside the border
-            setPadding(1, 1, 1, 1) // Optional: padding to prevent content from touching the border
+            addView(view)
+            setPadding(1, 1, 1, 1)
         }
     }
     private fun buildCommonTable() {
@@ -216,7 +201,6 @@ class CommandsFragment : Fragment() {
         val row2Height = dpToPx(if (isLandscape) 100 else 140)
         val row3Height = dpToPx(if (isLandscape) 40 else 50)
 
-        // --- Row 1 ---
         val row1 = TableRow(context)
 
         val empty = TextView(context).apply {
@@ -231,7 +215,8 @@ class CommandsFragment : Fragment() {
             text = "Հինական անկյունաչափերը"
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(Color.parseColor("#E8EAF6"))
+            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorPrimaryContainer))
+            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnPrimaryContainer))
             textSize = 12f
         }
         val params234 = TableRow.LayoutParams(cellWidth * 3, row1Height)
@@ -242,7 +227,8 @@ class CommandsFragment : Fragment() {
             text = "Անկյունաչափերի տարբերությունը"
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(Color.parseColor("#E3F2FD"))
+            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorPrimaryContainer))
+            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnPrimaryContainer))
             textSize = 10f
         }
         val params56 = TableRow.LayoutParams(cellWidth * 2, row1Height)
@@ -251,7 +237,6 @@ class CommandsFragment : Fragment() {
 
         commonTableLayout.addView(row1)
 
-        // --- Row 2 (vertical Armenian text) ---
         val r2Texts = listOf(
             "բուսոլի նշումն ըստ հ.ու.",
             "Ըստ հիմնական ՆԿ-ի",
@@ -267,7 +252,8 @@ class CommandsFragment : Fragment() {
                 text = r2Texts[col]
                 gravity = Gravity.CENTER
                 setTypeface(null, Typeface.BOLD)
-                setBackgroundColor(Color.parseColor("#FAFAFA"))
+                setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurfaceContainerHighest))
+                setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
                 textSize = 10f
             }
             val params = TableRow.LayoutParams(cellWidth, row2Height)
@@ -275,21 +261,20 @@ class CommandsFragment : Fragment() {
         }
         commonTableLayout.addView(row2)
 
-        // --- Row 3 (editable for col 1–4, read-only for 5–6) ---
         val row3 = TableRow(context)
         for (col in 1..numCols) {
             val cellView: View = if (col <= 4) {
                 val editText = EditText(context).apply {
                     hint = "00-00"
                     gravity = Gravity.CENTER
-                    background = null
+                    setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
+                    setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
+                    setHintTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurfaceVariant))
                     textSize = 12f
                     inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                    // max displayed length including dash is 5 (e.g. "12-34")
                     filters = arrayOf(android.text.InputFilter.LengthFilter(5))
                 }
 
-                // internal guard to avoid recursive edits
                 var isSelfChange = false
 
                 editText.addTextChangedListener(object : android.text.TextWatcher {
@@ -301,22 +286,16 @@ class CommandsFragment : Fragment() {
                         isSelfChange = true
 
                         val raw = s?.toString() ?: ""
-                        // keep only digits, up to 4 digits
                         val digits = raw.replace("[^\\d]".toRegex(), "").take(4)
 
-                        // split first 2 and next up to 2
                         val firstPart = digits.take(2)
                         var secondPart = if (digits.length > 2) digits.substring(2) else ""
 
-                        // clamp ranges: first 00..59, second 00..99
                         if (firstPart.isNotEmpty()) {
                             val v = firstPart.toInt()
                             if (v > 59) {
-                                // replace first part with clamped value
                                 val clamped = "59"
-                                // rebuild digits accordingly
                                 val newDigits = if (digits.length > 2) clamped + digits.substring(2) else clamped
-                                // ensure secondPart updated from newDigits
                                 secondPart = if (newDigits.length > 2) newDigits.substring(2) else ""
                             }
                         }
@@ -325,22 +304,17 @@ class CommandsFragment : Fragment() {
                             if (v2 > 99) secondPart = "99"
                         }
 
-                        // Build formatted string:
-                        // - if user typed <=2 digits: show digits as-is (no padding)
-                        // - if user typed 3..4 digits: show as "AA-BB" (no padding zeros while typing)
                         val formatted = when {
                             digits.length <= 2 -> firstPart
                             else -> {
                                 val a = firstPart.padStart(2, '0')
-                                val b = secondPart.padStart(digits.length - 2, '0') // keep raw length for second part
+                                val b = secondPart.padStart(digits.length - 2, '0')
                                 "$a-$b"
                             }
                         }
 
-                        // update only if changed
                         if (formatted != raw) {
                             editText.setText(formatted)
-                            // place cursor at end (keeps UX simple and stable)
                             editText.setSelection(formatted.length.coerceAtMost(editText.text.length))
                         }
 
@@ -348,7 +322,6 @@ class CommandsFragment : Fragment() {
                     }
                 })
 
-                // on focus lost: pad/normalize to full "AA-BB" format and enforce ranges
                 editText.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
                     if (!hasFocus) {
                         val raw = editText.text.toString()
@@ -356,7 +329,6 @@ class CommandsFragment : Fragment() {
                         var first = digits.substring(0, 2)
                         var second = digits.substring(2, 4)
 
-                        // clamp ranges
                         val firstInt = first.toInt()
                         if (firstInt > 59) first = "59"
                         val secondInt = second.toInt()
@@ -373,7 +345,8 @@ class CommandsFragment : Fragment() {
                 TextView(context).apply {
                     text = "00-00"
                     gravity = Gravity.CENTER
-                    setBackgroundColor(Color.parseColor("#F5F5F5"))
+                    setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurfaceContainer))
+                    setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
                     textSize = 12f
                 }
             }
@@ -385,136 +358,8 @@ class CommandsFragment : Fragment() {
         commonTableLayout.addView(row3)
     }
 
-
-
-
-
-
-
-
-//    private fun buildCommonTable() {
-//        commonTableLayout.removeAllViews()
-//
-//        // --- Row 1 ---
-//        val row1 = TableRow(requireContext())
-//
-//        // Col1 (merged vertically with row2) - vertical text
-//        val cell1 = TextView(requireContext()).apply {
-//            text = "     "
-//            setPadding(8, 8, 8, 8)
-//            setBackgroundColor(Color.parseColor("#CCCCCC"))
-//            setTypeface(null, Typeface.BOLD)
-//            gravity = Gravity.CENTER
-//            rotation = -90f
-//            textSize = 12f
-//        }
-//        val params1 = TableRow.LayoutParams(0, TableRow.LayoutParams.MATCH_PARENT, 1f)
-//        cell1.layoutParams = params1
-//        row1.addView(cell1)
-//
-//        // Cols 2+3+4 merged horizontally
-//        val cell2to4 = TextView(requireContext()).apply {
-//            text = "Հինական\n(անկյունաչափերը)"
-//            setPadding(16, 8, 16, 8)
-//            setBackgroundColor(Color.parseColor("#DDDDDD"))
-//            setTypeface(null, Typeface.BOLD)
-//            gravity = Gravity.CENTER
-//            textSize = 12f
-//        }
-//        val params2to4 = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 3f)
-//        params2to4.span = 3
-//        row1.addView(cell2to4, params2to4)
-//
-//        // Cols 5+6 merged horizontally
-//        val cell5to6 = TextView(requireContext()).apply {
-//            text = "Անկյունաչափերի\n(տարբերությունը )"
-//            setPadding(16, 8, 16, 8)
-//            setBackgroundColor(Color.parseColor("#BBBBBB"))
-//            setTypeface(null, Typeface.BOLD)
-//            gravity = Gravity.CENTER
-//            textSize = 12f
-//        }
-//        val params5to6 = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 2f)
-//        params5to6.span = 2
-//        row1.addView(cell5to6, params5to6)
-//
-//        commonTableLayout.addView(row1)
-//
-//        // --- Row 2 ---
-//        val row2 = TableRow(requireContext())
-//
-//        // Placeholder for merged Col1 (invisible)
-//        val emptyView = View(requireContext()).apply {
-//            layoutParams = TableRow.LayoutParams(0, 0)
-//            visibility = View.INVISIBLE
-//        }
-//        row2.addView(emptyView)
-//
-//        val r2Texts = listOf(
-//            "բուսոլի նշումն ըստ հ.ու.",
-//            "Ըստ հիմնական ՆԿ-ի",
-//            "Ըստ պահեստային ՆԿ-ի",
-//            "Ըստ գիշերային ՆԿ-ի",
-//            "Պահեստային ՆԿ-ին",
-//            "Գիշերային ՆԿ-ին"
-//        )
-//
-//        for (text in r2Texts) {
-//            val container = FrameLayout(requireContext()).apply {
-//                layoutParams = TableRow.LayoutParams(
-//                    90, // width for vertical text
-//                    240 // height of the row
-//                )
-//                setBackgroundColor(Color.parseColor("#EEEEEE"))
-//            }
-//
-//            val cell = TextView(requireContext()).apply {
-//                this.text = text
-//                setPadding(0, 0, 0, 0)
-//                gravity = Gravity.CENTER
-//                rotation = -90f
-//                textSize = 10f
-//            }
-//
-//            container.addView(cell)
-//            row2.addView(container)
-//        }
-//        commonTableLayout.addView(row2)
-//
-//        // --- Row 3 ---
-//        val row3 = TableRow(requireContext())
-//        for (colIndex in 1..6) {
-//            if (colIndex in 1..4) {
-//                // Editable, horizontal
-//                val cell = EditText(requireContext()).apply {
-//                    hint = "R3C$colIndex"
-//                    setPadding(16, 8, 16, 8)
-//                    gravity = Gravity.CENTER
-//                    setBackgroundColor(Color.WHITE)
-//                    textSize = 12f
-//                }
-//                val params = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f)
-//                row3.addView(cell, params)
-//            } else {
-//                // Not editable, horizontal
-//                val cell = TextView(requireContext()).apply {
-//                    text = "R3C$colIndex"
-//                    setPadding(16, 8, 16, 8)
-//                    gravity = Gravity.CENTER
-//                    setBackgroundColor(Color.parseColor("#EEEEEE"))
-//                    textSize = 12f
-//                }
-//                val params = TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f)
-//                row3.addView(cell, params)
-//            }
-//        }
-//        commonTableLayout.addView(row3)
-//    }
-
-
     private fun showTab(command: TargetCommand) {
         currentVisibleTab = command.targetName
-        // Assuming TabFragment.newInstance(command) is correctly defined elsewhere
         val fragment = TabFragment.newInstance(command) 
         childFragmentManager.beginTransaction()
             .replace(contentFrameId, fragment)
@@ -551,16 +396,15 @@ class CommandsFragment : Fragment() {
                     commandData.clear()
                     commandData.putAll(loadedData)
                     tabs.clear()
-                    tabs.addAll(commandData.keys.sorted()) // Ensure tabs are sorted
+                    tabs.addAll(commandData.keys.sorted())
                     listAdapter?.notifyDataSetChanged()
 
                     if (tabs.isNotEmpty()) {
-                       commandData[tabs[0]]?.let { showTab(it) } // Show first tab
+                       commandData[tabs[0]]?.let { showTab(it) }
                     } else {
-                       clearContentFrame() // No tabs to show
+                       clearContentFrame()
                     }
                 } else {
-                    // File exists but data is null (e.g. parse error or empty file)
                     Log.w("CommandsFragment", "Command file exists but content is invalid or empty.")
                     commandData.clear()
                     tabs.clear()
@@ -568,7 +412,6 @@ class CommandsFragment : Fragment() {
                     clearContentFrame()
                 }
             } else {
-                // File does not exist, treat as no commands
                 commandData.clear()
                 tabs.clear()
                 listAdapter?.notifyDataSetChanged()
@@ -576,7 +419,6 @@ class CommandsFragment : Fragment() {
             }
         } catch (e: Exception) {
             Log.e("CommandsFragment", "Error loading commands: ${e.localizedMessage}")
-            // Fallback: clear data and UI
             commandData.clear()
             tabs.clear()
             listAdapter?.notifyDataSetChanged()
@@ -587,7 +429,7 @@ class CommandsFragment : Fragment() {
     private fun handleDeleteCommand(commandName: String) {
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Command")
-            .setMessage("Are you sure you want to delete the command \"$commandName\"?")// Corrected string template
+            .setMessage("Are you sure you want to delete the command \"$commandName\"?")
             .setPositiveButton("Yes") { _, _ ->
                 val wasCurrentVisibleTab = currentVisibleTab == commandName
                 
@@ -601,14 +443,11 @@ class CommandsFragment : Fragment() {
                 }
 
                 if (tabs.isNotEmpty()) {
-                    // If the deleted tab was visible OR if no tab is currently visible, show the first available tab.
                     if (wasCurrentVisibleTab || currentVisibleTab == null) {
                          commandData[tabs[0]]?.let { showTab(it) }
                     }
-                    // If another tab was already visible and it wasn't the one deleted, it remains visible.
                 } else {
-                    // No tabs left, ensure content frame is clear (already done if wasCurrentVisibleTab and currentVisibleTab was not null)
-                    if (!wasCurrentVisibleTab || currentVisibleTab != null) { // ensure clear if wasCurrentVisibleTab was null
+                    if (!wasCurrentVisibleTab || currentVisibleTab != null) {
                         clearContentFrame()
                     }
                 }

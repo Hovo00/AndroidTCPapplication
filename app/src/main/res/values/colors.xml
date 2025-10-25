@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Core Palette -->
+    <color name="primary_green">#076947</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Side Panels -->
+    <color name="side_panel_dark_background">#021c13</color>
+    <color name="table_background_dark">#010E09</color>
+
+    <!-- Light Theme Colors -->
+    <color name="primary_light">@color/primary_green</color>
+    <color name="on_primary_light">@color/white</color>
+    <color name="surface_light">@color/white</color>
+    <color name="on_surface_light">@color/black</color>
+    <color name="background_light">@color/white</color>
+    <color name="on_background_light">@color/black</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="dark_background_gradient_start">#FF121212</color>
+    <color name="dark_background_gradient_end">#FF0A0A0A</color>
+    <color name="primary_dark">@color/primary_green</color>
+    <color name="on_primary_dark">@color/white</color>
+    <color name="surface_dark">#021c13</color> <!-- The off-black/green for surfaces -->
+    <color name="on_surface_dark">@color/white</color>
+    <color name="background_dark">@color/surface_dark</color>
+    <color name="on_background_dark">@color/white</color>
 </resources>
