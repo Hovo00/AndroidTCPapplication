@@ -190,7 +190,8 @@ class CommandsFragment : Fragment() {
         commonTableLayout.removeAllViews()
 
         val context = requireContext()
-        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val isDarkMode =
+            (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val numCols = 6
 
         val tableContainerWidth =
@@ -200,7 +201,8 @@ class CommandsFragment : Fragment() {
         fun dpToPx(dp: Int): Int =
             (dp * resources.displayMetrics.density).toInt()
 
-        val isLandscape = resources.displayMetrics.widthPixels > resources.displayMetrics.heightPixels
+        val isLandscape =
+            resources.displayMetrics.widthPixels > resources.displayMetrics.heightPixels
         val row1Height = dpToPx(if (isLandscape) 40 else 50)
         val row2Height = dpToPx(if (isLandscape) 100 else 140)
         val row3Height = dpToPx(if (isLandscape) 40 else 50)
@@ -284,13 +286,52 @@ class CommandsFragment : Fragment() {
         commonTableLayout.addView(row2)
 
         val row3 = TableRow(context)
+        val editTexts = mutableListOf<EditText>()
+        val numEditable = 4
+
+        fun parseAngle(text: String): Double {
+            val parts = text.split("-")
+            return if (parts.size == 2) {
+                val first = parts[0].toDoubleOrNull() ?: 0.0
+                val second = parts[1].toDoubleOrNull() ?: 0.0
+                first + (second / 100)
+            } else 0.0
+        }
+
+        fun formatAngle(value: Double): String {
+            val first = value.toInt()
+            val second = ((value - first) * 100).toInt()
+            return String.format("%02d-%02d", first, second)
+        }
+
+// we’ll assign these later after building the row
+        var result5: TextView? = null
+        var result6: TextView? = null
+
+        fun recalcIfPossible() {
+            if (editTexts.size < numEditable) return
+            val texts = editTexts.map { it.text.toString() }
+            if (texts.any { it.length < 5 }) return
+
+            val values = texts.map { parseAngle(it) }
+
+            var diff5 = values[2] - values[1]
+            var diff6 = values[3] - values[1]
+
+            if (diff5 < 0) diff5 += 60.0
+            if (diff6 < 0) diff6 += 60.0
+
+            result5?.text = formatAngle(diff5)
+            result6?.text = formatAngle(diff6)
+        }
+
         for (col in 1..numCols) {
-            val cellView: View = if (col <= 4) {
+            val cellView: View = if (col <= numEditable) {
                 val editText = EditText(context).apply {
                     hint = "00-00"
                     gravity = Gravity.CENTER
                     if (isDarkMode) {
-                        setBackgroundColor(Color.parseColor("#1e1e1e")) // dark gray
+                        setBackgroundColor(Color.parseColor("#1e1e1e"))
                         setTextColor(Color.WHITE)
                         setHintTextColor(Color.LTGRAY)
                     } else {
@@ -306,8 +347,21 @@ class CommandsFragment : Fragment() {
                 var isSelfChange = false
 
                 editText.addTextChangedListener(object : android.text.TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int
+                    ) {
+                    }
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int
+                    ) {
+                    }
 
                     override fun afterTextChanged(s: android.text.Editable?) {
                         if (isSelfChange) return
@@ -323,8 +377,10 @@ class CommandsFragment : Fragment() {
                             val v = firstPart.toInt()
                             if (v > 59) {
                                 val clamped = "59"
-                                val newDigits = if (digits.length > 2) clamped + digits.substring(2) else clamped
-                                secondPart = if (newDigits.length > 2) newDigits.substring(2) else ""
+                                val newDigits =
+                                    if (digits.length > 2) clamped + digits.substring(2) else clamped
+                                secondPart =
+                                    if (newDigits.length > 2) newDigits.substring(2) else ""
                             }
                         }
                         if (secondPart.isNotEmpty()) {
@@ -347,10 +403,11 @@ class CommandsFragment : Fragment() {
                         }
 
                         isSelfChange = false
+                        recalcIfPossible()
                     }
                 })
 
-                editText.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
+                editText.onFocusChangeListener = View.OnFocusChangeListener { _, hasFocus ->
                     if (!hasFocus) {
                         val raw = editText.text.toString()
                         val digits = raw.replace("[^\\d]".toRegex(), "").padEnd(4, '0').take(4)
@@ -365,9 +422,11 @@ class CommandsFragment : Fragment() {
                         val final = String.format("%02d-%02d", first.toInt(), second.toInt())
                         editText.setText(final)
                         editText.setSelection(final.length)
+                        recalcIfPossible()
                     }
                 }
 
+                editTexts.add(editText)
                 editText
             } else {
                 TextView(context).apply {
@@ -382,6 +441,10 @@ class CommandsFragment : Fragment() {
             val params = TableRow.LayoutParams(cellWidth, row3Height)
             row3.addView(createBorderedWrapper(context, cellView), params)
         }
+
+// link calculated cell views after creation
+        result5 = ((row3.getChildAt(4) as FrameLayout).getChildAt(0) as TextView)
+        result6 = ((row3.getChildAt(5) as FrameLayout).getChildAt(0) as TextView)
 
         commonTableLayout.addView(row3)
     }
