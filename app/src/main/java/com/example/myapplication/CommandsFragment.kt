@@ -37,10 +37,13 @@ class VerticalTextView(context: Context, attrs: AttributeSet? = null) : AppCompa
         val dx = (height - layout.width) / 2f
         val dy = (width - layout.height) / 2f
         canvas.translate(dx, dy)
-        layout?.draw(canvas)
+
+        paint.color = currentTextColor // <— force use of current text color
+        layout?.draw(canvas)           // <— draw with proper paint and color
         canvas.restore()
     }
 }
+
 
 private const val COMMANDS_FILENAME = "commands.json"
 
@@ -209,6 +212,7 @@ class CommandsFragment : Fragment() {
             gravity = Gravity.CENTER
             textSize = 12f
         }
+
         val paramsEmpty = TableRow.LayoutParams(cellWidth, row1Height)
         row1.addView(createBorderedWrapper(context, empty), paramsEmpty)
 
@@ -217,7 +221,7 @@ class CommandsFragment : Fragment() {
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
             if (isDarkMode) {
-                setBackgroundColor(Color.parseColor("#004d00")) // dark green
+                setBackgroundColor(Color.parseColor("#00140a")) // dark green
                 setTextColor(Color.WHITE)
             } else {
                 setBackgroundColor(Color.parseColor("#97db9a")) // light green
@@ -234,7 +238,7 @@ class CommandsFragment : Fragment() {
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
             if (isDarkMode) {
-                setBackgroundColor(Color.parseColor("#004d00")) // dark green
+                setBackgroundColor(Color.parseColor("#00140a")) // dark green
                 setTextColor(Color.WHITE)
             } else {
                 setBackgroundColor(Color.parseColor("#97db9a")) // light green
@@ -273,7 +277,9 @@ class CommandsFragment : Fragment() {
                 textSize = 10f
             }
             val params = TableRow.LayoutParams(cellWidth, row2Height)
-            row2.addView(createBorderedWrapper(context, textView), params)
+            val wrapped = createBorderedWrapper(context, textView)
+            textView.setTextColor(if (isDarkMode) Color.WHITE else Color.BLACK)
+            row2.addView(wrapped, params)
         }
         commonTableLayout.addView(row2)
 
