@@ -187,6 +187,7 @@ class CommandsFragment : Fragment() {
         commonTableLayout.removeAllViews()
 
         val context = requireContext()
+        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val numCols = 6
 
         val tableContainerWidth =
@@ -215,8 +216,13 @@ class CommandsFragment : Fragment() {
             text = "Հինական անկյունաչափերը"
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorPrimaryContainer))
-            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnPrimaryContainer))
+            if (isDarkMode) {
+                setBackgroundColor(Color.parseColor("#004d00")) // dark green
+                setTextColor(Color.WHITE)
+            } else {
+                setBackgroundColor(Color.parseColor("#97db9a")) // light green
+                setTextColor(Color.BLACK)
+            }
             textSize = 12f
         }
         val params234 = TableRow.LayoutParams(cellWidth * 3, row1Height)
@@ -227,8 +233,13 @@ class CommandsFragment : Fragment() {
             text = "Անկյունաչափերի տարբերությունը"
             gravity = Gravity.CENTER
             setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorPrimaryContainer))
-            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnPrimaryContainer))
+            if (isDarkMode) {
+                setBackgroundColor(Color.parseColor("#004d00")) // dark green
+                setTextColor(Color.WHITE)
+            } else {
+                setBackgroundColor(Color.parseColor("#97db9a")) // light green
+                setTextColor(Color.BLACK)
+            }
             textSize = 10f
         }
         val params56 = TableRow.LayoutParams(cellWidth * 2, row1Height)
@@ -252,8 +263,13 @@ class CommandsFragment : Fragment() {
                 text = r2Texts[col]
                 gravity = Gravity.CENTER
                 setTypeface(null, Typeface.BOLD)
-                setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurfaceContainerHighest))
-                setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
+                if (isDarkMode) {
+                    setBackgroundColor(Color.parseColor("#01240f")) // dark green
+                    setTextColor(Color.WHITE)
+                } else {
+                    setBackgroundColor(Color.parseColor("#62a865")) // light green
+                    setTextColor(Color.BLACK)
+                }
                 textSize = 10f
             }
             val params = TableRow.LayoutParams(cellWidth, row2Height)
@@ -267,9 +283,15 @@ class CommandsFragment : Fragment() {
                 val editText = EditText(context).apply {
                     hint = "00-00"
                     gravity = Gravity.CENTER
-                    setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
-                    setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
-                    setHintTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    if (isDarkMode) {
+                        setBackgroundColor(Color.parseColor("#1e1e1e")) // dark gray
+                        setTextColor(Color.WHITE)
+                        setHintTextColor(Color.LTGRAY)
+                    } else {
+                        setBackgroundColor(Color.WHITE)
+                        setTextColor(Color.BLACK)
+                        setHintTextColor(Color.DKGRAY)
+                    }
                     textSize = 12f
                     inputType = android.text.InputType.TYPE_CLASS_NUMBER
                     filters = arrayOf(android.text.InputFilter.LengthFilter(5))
