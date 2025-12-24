@@ -46,6 +46,7 @@ class VerticalTextView(context: Context, attrs: AttributeSet? = null) : AppCompa
 
 
 private const val COMMANDS_FILENAME = "commands.json"
+private const val COMMON_TABLE_FILENAME = "common_table.json"
 
 class CommandsFragment : Fragment() {
 
@@ -288,6 +289,7 @@ class CommandsFragment : Fragment() {
         val row3 = TableRow(context)
         val editTexts = mutableListOf<EditText>()
         val numEditable = 4
+        val savedValues = loadCommonTable()
 
         fun parseAngle(text: String): Double {
             val parts = text.split("-")
@@ -404,6 +406,7 @@ class CommandsFragment : Fragment() {
 
                         isSelfChange = false
                         recalcIfPossible()
+                        saveCommonTable(editTexts.map { it.text.toString() })
                     }
                 })
 
@@ -423,10 +426,15 @@ class CommandsFragment : Fragment() {
                         editText.setText(final)
                         editText.setSelection(final.length)
                         recalcIfPossible()
+                        saveCommonTable(editTexts.map { it.text.toString() })
                     }
                 }
 
                 editTexts.add(editText)
+                if (savedValues != null && col <= savedValues.size) {
+                    editText.setText(savedValues[col - 1])
+                }
+
                 editText
             } else {
                 TextView(context).apply {
@@ -472,6 +480,28 @@ class CommandsFragment : Fragment() {
             file.writeText(jsonString)
         } catch (e: Exception) {
             Log.e("CommandsFragment", "Error saving commands: ${e.localizedMessage}")
+        }
+    }
+    private fun saveCommonTable(values: List<String>) {
+        try {
+            val file = File(requireContext().filesDir, COMMON_TABLE_FILENAME)
+            val json = gson.toJson(values)
+            file.writeText(json)
+        } catch (e: Exception) {
+            Log.e("CommandsFragment", "Error saving common table: ${e.localizedMessage}")
+        }
+    }
+
+    private fun loadCommonTable(): List<String>? {
+        return try {
+            val file = File(requireContext().filesDir, COMMON_TABLE_FILENAME)
+            if (file.exists()) {
+                val json = file.readText()
+                gson.fromJson(json, object : TypeToken<List<String>>() {}.type)
+            } else null
+        } catch (e: Exception) {
+            Log.e("CommandsFragment", "Error loading common table: ${e.localizedMessage}")
+            null
         }
     }
 
