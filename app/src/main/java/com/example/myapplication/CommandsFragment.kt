@@ -147,23 +147,35 @@ class CommandsFragment : Fragment() {
 
         viewModel.incomingCommand.observe(viewLifecycleOwner) { command ->
             val targetName = command.targetName
-            val isNewTab = targetName !in tabs
 
-            if (isNewTab) {
-                tabs.add(targetName)
-                tabs.sort()
+            if (command.isCorrection) {
+                val existingCommand = commandData[targetName]
+                if (existingCommand != null) {
+                    val newOrderText = existingCommand.orderText + "\n" + command.orderText
+                    val updatedCommand = existingCommand.copy(orderText = newOrderText)
+                    commandData[targetName] = updatedCommand
+                } else {
+                    // If for some reason a correction arrives for a non-existent command, treat it as a new one.
+                    if (targetName !in tabs) {
+                        tabs.add(targetName)
+                        tabs.sort()
+                    }
+                    commandData[targetName] = command
+                }
+            } else {
+                if (targetName !in tabs) {
+                    tabs.add(targetName)
+                    tabs.sort()
+                }
+                commandData[targetName] = command
             }
-            commandData[targetName] = command
+
             saveCommands()
             listAdapter?.notifyDataSetChanged()
 
-            val shouldShowThisCommand = currentVisibleTab == targetName || (isNewTab && tabs.size == 1)
-            val isContentFrameEmpty = childFragmentManager.findFragmentById(contentFrameId) == null
-
+            val shouldShowThisCommand = currentVisibleTab == targetName
             if (shouldShowThisCommand) {
-                showTab(command)
-            } else if (isContentFrameEmpty && tabs.isNotEmpty()) {
-                commandData[tabs[0]]?.let { showTab(it) }
+                commandData[targetName]?.let { showTab(it) }
             }
         }
 

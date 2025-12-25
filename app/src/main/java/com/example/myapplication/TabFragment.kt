@@ -13,6 +13,8 @@ class TabFragment : Fragment() {
     private lateinit var rootLayout: LinearLayout
     private lateinit var orderTextView: TextView
     private lateinit var tableLayout: TableLayout
+    private lateinit var correctionContainer: LinearLayout
+
     private var gunInfos: MutableList<GunInfo> = mutableListOf()
     private var targetCommand: TargetCommand? = null
 
@@ -24,16 +26,41 @@ class TabFragment : Fragment() {
             return fragment
         }
     }
+    private fun addCorrectionText(text: String) {
+        val tv = TextView(requireContext()).apply {
+            this.text = text
+            textSize = 15f
+            setPadding(12, 8, 12, 8)
+            setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnSurface))
+            setBackgroundColor(
+                getColorFromTheme(com.google.android.material.R.attr.colorSurfaceVariant)
+            )
+        }
 
+        val params = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = 8
+        }
+
+        correctionContainer.addView(tv, params)
+    }
     private fun getColorFromTheme(attrRes: Int): Int {
         val typedValue = android.util.TypedValue()
         requireContext().theme.resolveAttribute(attrRes, typedValue, true)
         return typedValue.data
     }
 
+
     fun getLabel(): String = targetCommand?.targetName ?: ""
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+
         rootLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = ViewGroup.LayoutParams(
@@ -43,26 +70,30 @@ class TabFragment : Fragment() {
             setBackgroundColor(getColorFromTheme(android.R.attr.colorBackground))
         }
 
+        // ---- ORDER TEXT (top) ----
         orderTextView = TextView(requireContext()).apply {
             text = targetCommand?.orderText ?: ""
             setTypeface(null, Typeface.BOLD)
             textSize = 18f
             setPadding(16, 16, 16, 16)
             setTextColor(getColorFromTheme(com.google.android.material.R.attr.colorOnBackground))
+        }
+
+        rootLayout.addView(orderTextView)
+
+        // ✅ ADD THIS BLOCK HERE
+        correctionContainer = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
+            setPadding(16, 8, 16, 8)
         }
 
-        val scroll = ScrollView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            addView(orderTextView)
-        }
+        rootLayout.addView(correctionContainer)
 
+        // ---- TABLE BELOW ----
         tableLayout = TableLayout(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -72,20 +103,12 @@ class TabFragment : Fragment() {
             setStretchAllColumns(true)
         }
 
-        // Set background based on theme
-        val nightModeFlags = requireContext().resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
-            tableLayout.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.table_background_dark))
-        } else {
-            tableLayout.setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
-        }
-
-        rootLayout.addView(scroll)
         rootLayout.addView(tableLayout)
 
         buildTable()
         return rootLayout
     }
+
 
     private fun buildTable() {
         tableLayout.removeAllViews()
@@ -140,10 +163,17 @@ class TabFragment : Fragment() {
     }
     fun updateCommand(command: TargetCommand) {
         targetCommand = command
-        gunInfos = command.guns.toMutableList()
+
         activity?.runOnUiThread {
             orderTextView.text = command.orderText ?: ""
-            buildTable()
+
+            if (command.isCorrection) {
+                addCorrectionText(command.orderText)
+            } else {
+                // full refresh (new target)
+                correctionContainer.removeAllViews()
+                buildTable()
+            }
         }
     }
     fun updateTable(newInfos: List<GunInfo>) {

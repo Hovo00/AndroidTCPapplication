@@ -30,7 +30,8 @@ data class GunInfo(
 data class TargetCommand(
     val targetName: String,
     val guns: List<GunInfo>,
-    var orderText: String = ""
+    var orderText: String = "",
+    val isCorrection: Boolean = false
 )
 
 private data class ParsedPacket(
@@ -97,7 +98,7 @@ class SharedViewModel : ViewModel() {
 
                         val result = parsePayloadForSender(parsed.payload, senderIdHex)
                         result?.let {
-                            if (it.guns.isNotEmpty()) {
+                            if (it.guns.isNotEmpty() || it.isCorrection) {
                                 _incomingCommand.postValue(it)
                             }
                         }
@@ -230,38 +231,32 @@ class SharedViewModel : ViewModel() {
         val parts = payload.split("|||").map { it.trim() }.filter { it.isNotEmpty() }
         if (parts.isEmpty()) return null
 
-        val first = parts[0]
-        if (!first.startsWith("TARGET=")) return null
-        val targetName = first.removePrefix("TARGET=").trim()
+        val isCorrection = parts.any { it == "C=true" }
+        val targetName = parts.find { it.startsWith("TARGET=") }?.removePrefix("TARGET=")?.trim() ?: return null
+        var orderText = parts.find { it.startsWith("O_T=") }?.removePrefix("O_T=")?.trim() ?: ""
 
-        var orderText = ""
         val infos = mutableListOf<GunInfo>()
 
-        for (entry in parts.drop(1)) {
-            if (entry.startsWith("O_T=")) {
-                orderText = entry.removePrefix("O_T=").trim()
-                continue
-            }
+        for (entry in parts) {
+            // Check if the entry is a gun command
+            if (!entry.contains("Հր.:")) continue
 
-            // Strictly match gun ID in 0xNNN format
             val gunIdMatch = Regex("Հր\\.:\\s*(0x[0-9A-Fa-f]{3})").find(entry) ?: continue
             val gunNumberStr = gunIdMatch.groupValues[1].lowercase(Locale.US)
 
-            // Only process if this gun matches our senderId
             if (gunNumberStr != senderId.lowercase(Locale.US)) continue
 
             val gunNumberInt = gunNumberStr.removePrefix("0x").toIntOrNull(16) ?: continue
 
-            // Parse other fields
             val lts = Regex("Լց\\.\\s*:\\s*(\\d+)").find(entry)?.groupValues?.get(1)?.toIntOrNull() ?: continue
-            val ns = Regex("Նշ\\.\\s*:\\s*(\\d+)").find(entry)?.groupValues?.get(1)?.toIntOrNull() ?: continue
-            val mk = Regex("Մկ\\.\\s*:\\s*([\\d\\-]+)").find(entry)?.groupValues?.get(1) ?: continue
-            val hu = Regex("Հ\\.ու\\.\\s*:\\s*([^|]+)").find(entry)?.groupValues?.get(1)?.trim() ?: continue
+            val ns  = Regex("Նշ\\.\\s*:\\s*(\\d+)").find(entry)?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            val mk  = Regex("Մկ\\.\\s*:\\s*([\\d\\-]+)").find(entry)?.groupValues?.get(1) ?: continue
+            val hu  = Regex("Հ\\.ու\\.\\s*:\\s*([^|]+)").find(entry)?.groupValues?.get(1)?.trim() ?: continue
 
             infos.add(GunInfo(gunNum = gunNumberInt, lts = lts, ns = ns, mk = mk, hu = hu))
         }
 
-        return TargetCommand(targetName, infos).also { it.orderText = orderText }
+        return TargetCommand(targetName, infos, orderText, isCorrection)
     }
 
 
