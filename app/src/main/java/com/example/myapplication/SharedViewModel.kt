@@ -30,7 +30,8 @@ data class GunInfo(
 data class TargetCommand(
     val targetName: String,
     val guns: List<GunInfo>,
-    var orderText: String = ""
+    var orderText: String = "",
+    val commandType: String // Combines mode and correction info (e.g., "bf", "bf_correction")
 )
 
 private data class ParsedPacket(
@@ -97,9 +98,7 @@ class SharedViewModel : ViewModel() {
 
                         val result = parsePayloadForSender(parsed.payload, senderIdHex)
                         result?.let {
-                            if (it.guns.isNotEmpty()) {
-                                _incomingCommand.postValue(it)
-                            }
+                            _incomingCommand.postValue(it)
                         }
 
 
@@ -230,6 +229,23 @@ class SharedViewModel : ViewModel() {
         val parts = payload.split("|||").map { it.trim() }.filter { it.isNotEmpty() }
         if (parts.isEmpty()) return null
 
+        val mode = parts.find { it.startsWith("M=") }?.removePrefix("M=")?.trim()
+        val isCorrection = parts.any { it == "C=t" }
+        val commandType = if (isCorrection) "${mode}_correction" else mode
+
+        /** is correction sended is redudant but done for keeping existing functionality i had before*/
+        return when (mode) {
+            "bf" -> handleBfCommand(parts, senderId, commandType, isCorrection)
+            "sf" -> handleSfCommand(parts, senderId, commandType, isCorrection)
+            "af" -> handleAfCommand(parts, senderId, commandType, isCorrection)
+            else -> {
+                _logMessages.postValue("⚠️ Unknown mode: $mode")
+                null
+            }
+        }
+    }
+
+    private fun parseGunCommand(parts: List<String>, senderId: String, commandType: String): TargetCommand? {
         val first = parts[0]
         if (!first.startsWith("TARGET=")) return null
         val targetName = first.removePrefix("TARGET=").trim()
@@ -261,11 +277,36 @@ class SharedViewModel : ViewModel() {
             infos.add(GunInfo(gunNum = gunNumberInt, lts = lts, ns = ns, mk = mk, hu = hu))
         }
 
-        return TargetCommand(targetName, infos).also { it.orderText = orderText }
+        if (infos.isEmpty() && commandType != "af_correction") return null // Return null if no guns are present, unless it's an AF correction
+
+        return TargetCommand(targetName, infos, orderText, commandType)
     }
 
 
+    private fun handleBfCommand(parts: List<String>, senderId: String, commandType: String, isCorrection: Boolean): TargetCommand? {
+        if (isCorrection) {
+            _logMessages.postValue("Correction received for bf mode. Functionality to be added later.")
+            return null // Or return a specific command indicating correction received
+        }
+        return parseGunCommand(parts, senderId, commandType)
+    }
 
+    private fun handleSfCommand(parts: List<String>, senderId: String, commandType: String, isCorrection: Boolean): TargetCommand? {
+        if (isCorrection) {
+            _logMessages.postValue("Correction received for sf mode. Functionality to be added later.")
+            return null // Or return a specific command indicating correction received
+        }
+        return parseGunCommand(parts, senderId, commandType)
+    }
+
+    private fun handleAfCommand(parts: List<String>, senderId: String, commandType: String, isCorrection: Boolean): TargetCommand? {
+        if (isCorrection) {
+            val targetName = parts.find { it.startsWith("TARGET=") }?.removePrefix("TARGET=")?.trim() ?: return null
+            var orderText = parts.find { it.startsWith("O_T=") }?.removePrefix("O_T=")?.trim() ?: ""
+            return TargetCommand(targetName, emptyList(), orderText, commandType)
+        }
+        return parseGunCommand(parts, senderId, commandType)
+    }
 
     /** ------------- SENDING ------------- */
     fun sendPacket(commandId: Int, payload: String) {

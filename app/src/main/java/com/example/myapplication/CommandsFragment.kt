@@ -165,6 +165,19 @@ class CommandsFragment : Fragment() {
             } else if (isContentFrameEmpty && tabs.isNotEmpty()) {
                 commandData[tabs[0]]?.let { showTab(it) }
             }
+
+            val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
+            if (currentFragment is TabFragment && currentFragment.getLabel() == command.targetName) {
+                when (command.commandType) {
+                    "bf" -> currentFragment.updateBfCommand(command)
+                    "sf" -> currentFragment.updateSfCommand(command)
+                    "af" -> currentFragment.updateAfCommand(command)
+                    "bf_correction" -> currentFragment.updateBfCorrectionCommand(command)
+                    "sf_correction" -> currentFragment.updateSfCorrectionCommand(command)
+                    "af_correction" -> currentFragment.updateAfCorrectionCommand(command)
+                    else -> Log.w("CommandsFragment", "Unknown command type for TabFragment update: ${command.commandType}")
+                }
+            }
         }
 
         loadCommands()

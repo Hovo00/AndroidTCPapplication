@@ -80,8 +80,13 @@ class TabFragment : Fragment() {
             tableLayout.setBackgroundColor(getColorFromTheme(com.google.android.material.R.attr.colorSurface))
         }
 
-        rootLayout.addView(scroll)
-        rootLayout.addView(tableLayout)
+        if (targetCommand?.commandType == "af_correction") {
+            rootLayout.addView(tableLayout)
+            rootLayout.addView(scroll)
+        } else {
+            rootLayout.addView(scroll)
+            rootLayout.addView(tableLayout)
+        }
 
         buildTable()
         return rootLayout
@@ -138,7 +143,7 @@ class TabFragment : Fragment() {
             tableLayout.addView(row)
         }
     }
-    fun updateCommand(command: TargetCommand) {
+    fun updateBfCommand(command: TargetCommand) {
         targetCommand = command
         gunInfos = command.guns.toMutableList()
         activity?.runOnUiThread {
@@ -146,6 +151,55 @@ class TabFragment : Fragment() {
             buildTable()
         }
     }
+
+    fun updateSfCommand(command: TargetCommand) {
+        targetCommand = command
+        gunInfos = command.guns.toMutableList()
+        activity?.runOnUiThread {
+            orderTextView.text = command.orderText ?: ""
+            buildTable()
+        }
+    }
+
+    fun updateAfCommand(command: TargetCommand) {
+        targetCommand = command
+        gunInfos = command.guns.toMutableList()
+        activity?.runOnUiThread {
+            orderTextView.text = command.orderText ?: ""
+            buildTable()
+        }
+    }
+
+    fun updateBfCorrectionCommand(command: TargetCommand) {
+        targetCommand = command
+        gunInfos = command.guns.toMutableList()
+        activity?.runOnUiThread {
+            orderTextView.text = command.orderText ?: ""
+            buildTable()
+        }
+    }
+
+    fun updateSfCorrectionCommand(command: TargetCommand) {
+        targetCommand = command
+        gunInfos = command.guns.toMutableList()
+        activity?.runOnUiThread {
+            orderTextView.text = command.orderText ?: ""
+            buildTable()
+        }
+    }
+
+    fun updateAfCorrectionCommand(command: TargetCommand) {
+        targetCommand = command
+        gunInfos = command.guns.toMutableList()
+        activity?.runOnUiThread {
+            val currentText = orderTextView.text.toString()
+            val newOrderText = command.orderText ?: ""
+            if (newOrderText.isNotEmpty() && !currentText.contains(newOrderText)) {
+                orderTextView.text = if (currentText.isEmpty()) newOrderText else "$currentText\n$newOrderText"
+            }
+        }
+    }
+
     fun updateTable(newInfos: List<GunInfo>) {
         gunInfos = newInfos.toMutableList()
         activity?.runOnUiThread {
