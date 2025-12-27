@@ -231,7 +231,37 @@ class SharedViewModel : ViewModel() {
         val parts = payload.split("|||").map { it.trim() }.filter { it.isNotEmpty() }
         if (parts.isEmpty()) return null
 
-        val isCorrection = parts.any { it == "C=true" }
+        val mode = parts.find { it.startsWith("M=") }?.removePrefix("M=")?.trim()
+        val isCorrection = parts.any { it == "C=t" }
+
+        return when (mode) {
+            "bf", "sf" -> handleBfSfCommand(parts, senderId, isCorrection)
+            "af" -> handleAfCommand(parts, senderId, isCorrection)
+            else -> {
+                _logMessages.postValue("⚠️ Unknown mode: $mode")
+                null
+            }
+        }
+    }
+
+    private fun handleBfSfCommand(parts: List<String>, senderId: String, isCorrection: Boolean): TargetCommand? {
+        if (isCorrection) {
+            _logMessages.postValue("Correction received for bf/sf mode. Functionality to be added later.")
+            return null // Or return a specific command indicating correction received
+        }
+        return parseGunCommand(parts, senderId, isCorrection)
+    }
+
+    private fun handleAfCommand(parts: List<String>, senderId: String, isCorrection: Boolean): TargetCommand? {
+        if (isCorrection) {
+            val targetName = parts.find { it.startsWith("TARGET=") }?.removePrefix("TARGET=")?.trim() ?: return null
+            var orderText = parts.find { it.startsWith("O_T=") }?.removePrefix("O_T=")?.trim() ?: ""
+            return TargetCommand(targetName, emptyList(), orderText, isCorrection)
+        }
+        return parseGunCommand(parts, senderId, isCorrection)
+    }
+
+    private fun parseGunCommand(parts: List<String>, senderId: String, isCorrection: Boolean): TargetCommand? {
         val targetName = parts.find { it.startsWith("TARGET=") }?.removePrefix("TARGET=")?.trim() ?: return null
         var orderText = parts.find { it.startsWith("O_T=") }?.removePrefix("O_T=")?.trim() ?: ""
 

@@ -163,19 +163,24 @@ class CommandsFragment : Fragment() {
                     commandData[targetName] = command
                 }
             } else {
-                if (targetName !in tabs) {
+                val isNewTab = targetName !in tabs
+
+                if (isNewTab) {
                     tabs.add(targetName)
                     tabs.sort()
                 }
                 commandData[targetName] = command
-            }
+                saveCommands()
+                listAdapter?.notifyDataSetChanged()
 
-            saveCommands()
-            listAdapter?.notifyDataSetChanged()
+                val shouldShowThisCommand = currentVisibleTab == targetName || (isNewTab && tabs.size == 1)
+                val isContentFrameEmpty = childFragmentManager.findFragmentById(contentFrameId) == null
 
-            val shouldShowThisCommand = currentVisibleTab == targetName
-            if (shouldShowThisCommand) {
-                commandData[targetName]?.let { showTab(it) }
+                if (shouldShowThisCommand) {
+                    showTab(command)
+                } else if (isContentFrameEmpty && tabs.isNotEmpty()) {
+                    commandData[tabs[0]]?.let { showTab(it) }
+                }
             }
         }
 
