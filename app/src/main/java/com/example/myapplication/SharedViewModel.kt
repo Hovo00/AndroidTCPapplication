@@ -250,19 +250,19 @@ class SharedViewModel : ViewModel() {
     }
 
     private fun parseGunCommand(parts: List<String>, senderId: String, commandType: String): TargetCommand? {
-        val first = parts[0]
-        if (!first.startsWith("TARGET=")) return null
-        val targetName = first.removePrefix("TARGET=").trim()
+        val targetEntry = parts.find { it.startsWith("TARGET=") } ?: return null
+        val targetName = targetEntry.removePrefix("TARGET=").trim()
 
-        var orderText = ""
+        var orderText = parts.find { it.startsWith("O_T=") }?.removePrefix("O_T=")?.trim() ?: ""
+
         val infos = mutableListOf<GunInfo>()
 
-        for (entry in parts.drop(1)) {
-            if (entry.startsWith("O_T=")) {
-                orderText = entry.removePrefix("O_T=").trim()
-                continue
-            }
+        // Filter out command-specific entries before parsing gun info
+        val gunEntries = parts.filter {
+            !it.startsWith("M=") && !it.startsWith("C=") && !it.startsWith("TARGET=") && !it.startsWith("O_T=")
+        }
 
+        for (entry in gunEntries) {
             // Strictly match gun ID in 0xNNN format
             val gunIdMatch = Regex("Հր\\.:\\s*(0x[0-9A-Fa-f]{3})").find(entry) ?: continue
             val gunNumberStr = gunIdMatch.groupValues[1].lowercase(Locale.US)
