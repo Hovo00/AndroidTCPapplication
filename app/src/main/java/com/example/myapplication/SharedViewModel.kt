@@ -230,6 +230,10 @@ class SharedViewModel : ViewModel() {
         if (parts.isEmpty()) return null
 
         val mode = parts.find { it.startsWith("M=") }?.removePrefix("M=")?.trim()
+        if (mode == null) {
+            _logMessages.postValue("⚠️ Missing mode (M=...) in payload")
+            return null
+        }
         val isCorrection = parts.any { it == "C=t" }
         val commandType = if (isCorrection) "${mode}_correction" else mode
 
