@@ -32,4 +32,8 @@
     <color name="on_surface_dark">@color/white</color>
     <color name="background_dark">@color/surface_dark</color>
     <color name="on_background_dark">@color/white</color>
+
+    <!-- Active Tab Colors -->
+    <color name="active_tab_background">#3F51B5</color> <!-- A shade of blue for active tab background -->
+    <color name="active_tab_text">#FFFFFF</color> <!-- White text for active tab -->
 </resources>

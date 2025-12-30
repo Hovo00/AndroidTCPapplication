@@ -22,6 +22,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatTextView
+import android.media.MediaPlayer
 
 
 class VerticalTextView(context: Context, attrs: AttributeSet? = null) : AppCompatTextView(context, attrs) {
@@ -58,6 +59,7 @@ class CommandsFragment : Fragment() {
     private lateinit var viewModel: SharedViewModel
     private val gson = Gson()
     private var currentVisibleTab: String? = null
+    private val newCommandNotifications = mutableSetOf<String>() // To track new commands for blinking
 
     private lateinit var commonHeader: TextView
     private lateinit var commonTableLayout: TableLayout
@@ -133,14 +135,20 @@ class CommandsFragment : Fragment() {
         layout.addView(tabList)
         layout.addView(contentWrapper)
 
-        listAdapter = CommandAdapter(requireContext(), tabs) { commandName ->
-            handleDeleteCommand(commandName)
-        }
+        listAdapter = CommandAdapter(requireContext(), tabs,
+            onDeleteClicked = { commandName -> handleDeleteCommand(commandName) },
+            isNewCommand = { commandName -> newCommandNotifications.contains(commandName) }
+        )
         tabList.adapter = listAdapter
 
         tabList.setOnItemClickListener { _, _, position, _ ->
             val label = tabs[position]
-            commandData[label]?.let { showTab(it) }
+            commandData[label]?.let {
+                showTab(it)
+                newCommandNotifications.remove(label) // Mark as read when clicked
+                listAdapter?.setActiveTab(label)
+                listAdapter?.notifyDataSetChanged()
+            }
         }
 
         viewModel = ViewModelProvider(requireActivity())[SharedViewModel::class.java]
@@ -150,20 +158,23 @@ class CommandsFragment : Fragment() {
             val isNewTab = targetName !in tabs
 
             if (isNewTab) {
-                tabs.add(targetName)
-                tabs.sort()
+                tabs.add(0, targetName) // Add new tab at the beginning
+                newCommandNotifications.add(targetName) // Mark as new for blinking
+                playSoundNotification() // Play sound for new command
             }
             commandData[targetName] = command
             saveCommands()
             listAdapter?.notifyDataSetChanged()
 
-            val shouldShowThisCommand = currentVisibleTab == targetName || (isNewTab && tabs.size == 1)
-            val isContentFrameEmpty = childFragmentManager.findFragmentById(contentFrameId) == null
-
-            if (shouldShowThisCommand) {
+            // If no tab is currently visible, or if the new command is for the currently visible tab, show it.
+            // Otherwise, just update the data and let the notification handle it.
+            if (currentVisibleTab == null || currentVisibleTab == targetName) {
                 showTab(command)
-            } else if (isContentFrameEmpty && tabs.isNotEmpty()) {
-                commandData[tabs[0]]?.let { showTab(it) }
+                listAdapter?.setActiveTab(targetName)
+                newCommandNotifications.remove(targetName) // Mark as read if shown
+            } else {
+                // If a different tab is active, just update the data and notify the adapter
+                // The blinking will be handled by the adapter
             }
 
             val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
@@ -533,11 +544,15 @@ class CommandsFragment : Fragment() {
                     tabs.addAll(commandData.keys.sorted())
                     listAdapter?.notifyDataSetChanged()
 
-                    if (tabs.isNotEmpty()) {
-                       commandData[tabs[0]]?.let { showTab(it) }
-                    } else {
-                       clearContentFrame()
+                if (tabs.isNotEmpty()) {
+                    // If the previously visible tab was deleted, or no tab was visible, show the first tab
+                    if (wasCurrentVisibleTab || currentVisibleTab == null) {
+                        commandData[tabs[0]]?.let { showTab(it) }
+                        listAdapter?.setActiveTab(tabs[0])
                     }
+                } else {
+                    clearContentFrame()
+                }
                 } else {
                     Log.w("CommandsFragment", "Command file exists but content is invalid or empty.")
                     commandData.clear()
@@ -569,24 +584,37 @@ class CommandsFragment : Fragment() {
                 
                 tabs.remove(commandName)
                 commandData.remove(commandName)
+                newCommandNotifications.remove(commandName) // Also remove from new command notifications
                 listAdapter?.notifyDataSetChanged()
                 saveCommands()
 
                 if (wasCurrentVisibleTab) {
-                    clearContentFrame() 
+                    clearContentFrame()
                 }
 
                 if (tabs.isNotEmpty()) {
                     if (wasCurrentVisibleTab || currentVisibleTab == null) {
-                         commandData[tabs[0]]?.let { showTab(it) }
+                        commandData[tabs[0]]?.let { showTab(it) }
+                        listAdapter?.setActiveTab(tabs[0])
                     }
                 } else {
-                    if (!wasCurrentVisibleTab || currentVisibleTab != null) {
-                        clearContentFrame()
-                    }
+                    clearContentFrame()
                 }
+                listAdapter?.notifyDataSetChanged()
             }
             .setNegativeButton("No", null)
             .show()
+    }
+
+    private fun playSoundNotification() {
+        try {
+            val mediaPlayer = MediaPlayer.create(context, R.raw.new_command_sound)
+            mediaPlayer?.start()
+            mediaPlayer?.setOnCompletionListener { mp ->
+                mp.release()
+            }
+        } catch (e: Exception) {
+            Log.e("CommandsFragment", "Error playing sound: ${e.localizedMessage}")
+        }
     }
 }
