@@ -544,15 +544,12 @@ class CommandsFragment : Fragment() {
                     tabs.addAll(commandData.keys.sorted())
                     listAdapter?.notifyDataSetChanged()
 
-                if (tabs.isNotEmpty()) {
-                    // If the previously visible tab was deleted, or no tab was visible, show the first tab
-                    if (wasCurrentVisibleTab || currentVisibleTab == null) {
+                    if (tabs.isNotEmpty()) {
                         commandData[tabs[0]]?.let { showTab(it) }
                         listAdapter?.setActiveTab(tabs[0])
+                    } else {
+                        clearContentFrame()
                     }
-                } else {
-                    clearContentFrame()
-                }
                 } else {
                     Log.w("CommandsFragment", "Command file exists but content is invalid or empty.")
                     commandData.clear()
@@ -585,7 +582,6 @@ class CommandsFragment : Fragment() {
                 tabs.remove(commandName)
                 commandData.remove(commandName)
                 newCommandNotifications.remove(commandName) // Also remove from new command notifications
-                listAdapter?.notifyDataSetChanged()
                 saveCommands()
 
                 if (wasCurrentVisibleTab) {
