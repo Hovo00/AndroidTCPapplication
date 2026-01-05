@@ -195,7 +195,7 @@ class TabFragment : Fragment() {
             val currentText = orderTextView.text.toString()
             val newOrderText = command.orderText ?: ""
             if (newOrderText.isNotEmpty() && !currentText.contains(newOrderText)) {
-                orderTextView.text = if (currentText.isEmpty()) newOrderText else "$currentText\n$newOrderText"
+                orderTextView.text = if (currentText.isEmpty()) newOrderText else "$currentText\t$newOrderText"
             }
         }
     }
