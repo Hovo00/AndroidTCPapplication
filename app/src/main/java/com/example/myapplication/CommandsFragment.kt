@@ -167,9 +167,9 @@ class CommandsFragment : Fragment() {
             listAdapter?.notifyDataSetChanged()
 
             val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
-            val isCurrentTabVisible = currentFragment is TabFragment && currentFragment.getLabel() == command.targetName
+            val isCommandForVisibleTab = currentFragment is TabFragment && currentFragment.getLabel() == command.targetName
 
-            if (isCurrentTabVisible) {
+            if (isCommandForVisibleTab) {
                 // If the command is for the currently visible tab, update the existing fragment
                 when (command.commandType) {
                     "bf" -> (currentFragment as TabFragment).updateBfCommand(command)
@@ -180,16 +180,28 @@ class CommandsFragment : Fragment() {
                     "af_correction" -> (currentFragment as TabFragment).updateAfCorrectionCommand(command)
                     else -> Log.w("CommandsFragment", "Unknown command type for TabFragment update: ${command.commandType}")
                 }
+                // Since it's the visible tab, it should remain active and notification removed
                 listAdapter?.setActiveTab(targetName)
-                newCommandNotifications.remove(targetName) // Mark as read if shown
-            } else if (currentVisibleTab == null || isNewTab) {
-                // If no tab is currently visible, or if it's a new tab, show it.
-                showTab(command)
-                listAdapter?.setActiveTab(targetName)
-                newCommandNotifications.remove(targetName) // Mark as read if shown
+                newCommandNotifications.remove(targetName)
+            } else {
+                // If the command is NOT for the currently visible tab
+                // We only update the data and ensure notification is set.
+                // We do NOT call showTab or setActiveTab here, unless no tab is currently visible.
+
+                // If it's a correction for an existing tab that's not visible, add it to newCommandNotifications
+                if (!isNewTab && !newCommandNotifications.contains(targetName)) {
+                    newCommandNotifications.add(targetName)
+                }
+
+                // If no tab is currently visible, show the first command (which might be this new one)
+                if (currentVisibleTab == null && tabs.isNotEmpty()) {
+                    commandData[tabs[0]]?.let { firstCommand ->
+                        showTab(firstCommand)
+                        listAdapter?.setActiveTab(firstCommand.targetName)
+                        newCommandNotifications.remove(firstCommand.targetName)
+                    }
+                }
             }
-            // If a different tab is active and it's not a new tab, just update the data and let the notification handle it.
-            // The blinking will be handled by the adapter.
         }
 
         loadCommands()
