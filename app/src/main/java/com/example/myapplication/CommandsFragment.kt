@@ -166,29 +166,30 @@ class CommandsFragment : Fragment() {
             saveCommands()
             listAdapter?.notifyDataSetChanged()
 
-            // If no tab is currently visible, or if the new command is for the currently visible tab, show it.
-            // Otherwise, just update the data and let the notification handle it.
-            if (currentVisibleTab == null || currentVisibleTab == targetName) {
+            val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
+            val isCurrentTabVisible = currentFragment is TabFragment && currentFragment.getLabel() == command.targetName
+
+            if (isCurrentTabVisible) {
+                // If the command is for the currently visible tab, update the existing fragment
+                when (command.commandType) {
+                    "bf" -> (currentFragment as TabFragment).updateBfCommand(command)
+                    "sf" -> (currentFragment as TabFragment).updateSfCommand(command)
+                    "af" -> (currentFragment as TabFragment).updateAfCommand(command)
+                    "bf_correction" -> (currentFragment as TabFragment).updateBfCorrectionCommand(command)
+                    "sf_correction" -> (currentFragment as TabFragment).updateSfCorrectionCommand(command)
+                    "af_correction" -> (currentFragment as TabFragment).updateAfCorrectionCommand(command)
+                    else -> Log.w("CommandsFragment", "Unknown command type for TabFragment update: ${command.commandType}")
+                }
+                listAdapter?.setActiveTab(targetName)
+                newCommandNotifications.remove(targetName) // Mark as read if shown
+            } else if (currentVisibleTab == null || isNewTab) {
+                // If no tab is currently visible, or if it's a new tab, show it.
                 showTab(command)
                 listAdapter?.setActiveTab(targetName)
                 newCommandNotifications.remove(targetName) // Mark as read if shown
-            } else {
-                // If a different tab is active, just update the data and notify the adapter
-                // The blinking will be handled by the adapter
             }
-
-            val currentFragment = childFragmentManager.findFragmentById(contentFrameId)
-            if (currentFragment is TabFragment && currentFragment.getLabel() == command.targetName) {
-                when (command.commandType) {
-                    "bf" -> currentFragment.updateBfCommand(command)
-                    "sf" -> currentFragment.updateSfCommand(command)
-                    "af" -> currentFragment.updateAfCommand(command)
-                    "bf_correction" -> currentFragment.updateBfCorrectionCommand(command)
-                    "sf_correction" -> currentFragment.updateSfCorrectionCommand(command)
-                    "af_correction" -> currentFragment.updateAfCorrectionCommand(command)
-                    else -> Log.w("CommandsFragment", "Unknown command type for TabFragment update: ${command.commandType}")
-                }
-            }
+            // If a different tab is active and it's not a new tab, just update the data and let the notification handle it.
+            // The blinking will be handled by the adapter.
         }
 
         loadCommands()
